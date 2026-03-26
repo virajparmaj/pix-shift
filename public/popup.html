@@ -4,20 +4,59 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="popup.css">
-  <title>i-PNG</title>
+  <title>PixShift</title>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <h1>i-PNG</h1>
-      <label class="toggle">
+      <div class="brand">
+        <div class="logo-shell">
+          <img src="icons/pix-shift Background Removed.png" alt="PixShift" class="logo">
+        </div>
+        <div class="brand-copy">
+          <p class="eyebrow">Google Photos Converter</p>
+          <h1>PixShift</h1>
+        </div>
+      </div>
+      <label class="toggle" aria-label="Enable PixShift">
         <input type="checkbox" id="enabled-toggle" checked>
         <span class="slider"></span>
       </label>
     </div>
-    <p class="status" id="status-text">Ready</p>
-    <div class="stats" id="stats">
-      <span id="converted-count">0</span> converted
+    <div class="status-row">
+      <p class="status" id="status-text">Ready</p>
+      <p class="status-detail">Auto-convert downloaded HEIC files instantly.</p>
+    </div>
+
+    <div class="section">
+      <p class="section-label">Output Format</p>
+      <label class="format-card" id="format-png-card">
+        <input type="radio" name="outputFormat" value="image/png" id="format-png" checked>
+        <div class="format-content">
+          <div class="format-header">
+            <span class="format-dot"></span>
+            <span class="format-name">PNG</span>
+            <span class="format-badge lossless">Lossless</span>
+          </div>
+          <p class="format-desc">Perfect quality, larger file size</p>
+        </div>
+      </label>
+      <label class="format-card" id="format-jpeg-card">
+        <input type="radio" name="outputFormat" value="image/jpeg" id="format-jpeg">
+        <div class="format-content">
+          <div class="format-header">
+            <span class="format-dot"></span>
+            <span class="format-name">JPEG</span>
+            <span class="format-badge lossy">Lossy</span>
+          </div>
+          <p class="format-desc">Smaller file, slight quality reduction</p>
+        </div>
+      </label>
+    </div>
+
+    <div class="stats-bar">
+      <span class="stats-icon" aria-hidden="true">&#x2193;</span>
+      <span class="stats-copy"><strong id="converted-count">0</strong> <span id="converted-label">files converted</span></span>
     </div>
   </div>
   <script type="module" src="popup.js"></script>

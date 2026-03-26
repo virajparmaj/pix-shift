@@ -1,5 +1,5 @@
-export function downloadPng(pngBase64: string, filename: string): Promise<number> {
-  const dataUrl = `data:image/png;base64,${pngBase64}`;
+export function downloadConverted(base64: string, filename: string, mimeType: string): Promise<number> {
+  const dataUrl = `data:${mimeType};base64,${base64}`;
   return new Promise((resolve, reject) => {
     chrome.downloads.download(
       { url: dataUrl, filename, saveAs: false },

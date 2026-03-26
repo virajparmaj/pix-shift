@@ -1,18 +1,19 @@
-import { HEIC_EXTENSIONS } from './constants';
+import { HEIC_EXTENSIONS, type OutputFormat } from './constants';
 
 export function isHeicFile(filename: string): boolean {
   const lower = filename.toLowerCase();
   return HEIC_EXTENSIONS.some((ext) => lower.endsWith(ext));
 }
 
-export function heicToPngFilename(filename: string): string {
+export function heicToOutputFilename(filename: string, format: OutputFormat): string {
+  const ext = format === 'image/jpeg' ? '.jpg' : '.png';
   const lower = filename.toLowerCase();
-  for (const ext of HEIC_EXTENSIONS) {
-    if (lower.endsWith(ext)) {
-      return filename.slice(0, -ext.length) + '.png';
+  for (const heicExt of HEIC_EXTENSIONS) {
+    if (lower.endsWith(heicExt)) {
+      return filename.slice(0, -heicExt.length) + ext;
     }
   }
-  return filename + '.png';
+  return filename + ext;
 }
 
 export function arrayBufferToBase64(buffer: ArrayBuffer): string {

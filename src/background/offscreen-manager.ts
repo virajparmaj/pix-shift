@@ -19,7 +19,7 @@ export async function ensureOffscreenDocument(): Promise<void> {
   creating = chrome.offscreen.createDocument({
     url: OFFSCREEN_DOCUMENT_PATH,
     reasons: [chrome.offscreen.Reason.BLOBS],
-    justification: 'HEIC to PNG image conversion using WASM decoder',
+    justification: 'HEIC image conversion using WASM decoder',
   });
 
   await creating;

@@ -1,7 +1,8 @@
 import JSZip from 'jszip';
-import { isHeicFile, heicToPngFilename } from '../shared/utils';
-import { convertHeicToPng } from './converter';
+import { isHeicFile, heicToOutputFilename } from '../shared/utils';
+import { convertHeic } from './converter';
 import { arrayBufferToBase64, base64ToArrayBuffer } from '../shared/utils';
+import type { OutputFormat } from '../shared/constants';
 
 interface ZipConversionStats {
   converted: number;
@@ -10,7 +11,8 @@ interface ZipConversionStats {
 }
 
 export async function convertZip(
-  zipBase64: string
+  zipBase64: string,
+  outputFormat: OutputFormat
 ): Promise<{ zipBase64: string; stats: ZipConversionStats }> {
   const zipBuffer = base64ToArrayBuffer(zipBase64);
   const zip = await JSZip.loadAsync(zipBuffer);
@@ -25,10 +27,10 @@ export async function convertZip(
     if (isHeicFile(path)) {
       try {
         const heicBase64 = arrayBufferToBase64(data);
-        const pngBase64 = await convertHeicToPng(heicBase64);
-        const pngBuffer = base64ToArrayBuffer(pngBase64);
-        const newPath = heicToPngFilename(path);
-        output.file(newPath, pngBuffer);
+        const convertedBase64 = await convertHeic(heicBase64, outputFormat);
+        const convertedBuffer = base64ToArrayBuffer(convertedBase64);
+        const newPath = heicToOutputFilename(path, outputFormat);
+        output.file(newPath, convertedBuffer);
         stats.converted++;
       } catch {
         // If conversion fails for this file, keep the original

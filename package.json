@@ -1,7 +1,7 @@
 {
-  "name": "i-png",
-  "version": "1.0.0",
-  "description": "Chrome extension that converts HEIC downloads from Google Photos to PNG",
+  "name": "pix-shift",
+  "version": "1.1.0",
+  "description": "Chrome extension that converts HEIC downloads from Google Photos to PNG or JPEG",
   "private": true,
   "type": "module",
   "scripts": {

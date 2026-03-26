@@ -1,7 +1,7 @@
-import { GOOGLEUSERCONTENT_PATTERN, USERCONTENT_PATTERN, CONVERSION_TIMEOUT_MS, STORAGE_KEYS } from '../shared/constants';
-import { arrayBufferToBase64, isHeicFile, heicToPngFilename } from '../shared/utils';
+import { GOOGLEUSERCONTENT_PATTERN, USERCONTENT_PATTERN, CONVERSION_TIMEOUT_MS, STORAGE_KEYS, type OutputFormat } from '../shared/constants';
+import { arrayBufferToBase64, isHeicFile, heicToOutputFilename } from '../shared/utils';
 import { ensureOffscreenDocument } from './offscreen-manager';
-import { downloadPng, downloadZip } from './download-manager';
+import { downloadConverted, downloadZip } from './download-manager';
 import type { ExtensionMessage } from '../types/messages';
 
 // Track download IDs we initiated ourselves to avoid re-intercepting
@@ -9,7 +9,10 @@ const ourDownloads = new Set<number>();
 // FIFO queue of filenames for our converted data-URL downloads
 const pendingOurFilenames: string[] = [];
 
-export function registerDownloadInterceptor(isEnabled: () => boolean): void {
+export function registerDownloadInterceptor(
+  isEnabled: () => boolean,
+  getOutputFormat: () => OutputFormat
+): void {
   chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
     // Our converted downloads come through as data: URLs — apply correct filename
     if (item.url.startsWith('data:') && pendingOurFilenames.length > 0) {
@@ -49,32 +52,30 @@ export function registerDownloadInterceptor(isEnabled: () => boolean): void {
       item.mime === 'application/zip';
 
     if (isHeic) {
-      // Single HEIC download — suggest first to unblock Chrome, then cancel + erase + convert
       suggest({ filename: item.filename });
       setTimeout(() => {
         chrome.downloads.cancel(item.id, () => {
           if (chrome.runtime.lastError) {
-            console.warn('[i-PNG] Cancel warning:', chrome.runtime.lastError.message);
+            console.warn('[PixShift] Cancel warning:', chrome.runtime.lastError.message);
           }
           chrome.downloads.erase({ id: item.id });
         });
       }, 100);
-      handleSingleHeic(item.url, filename);
+      handleSingleHeic(item.url, filename, getOutputFormat());
       return;
     }
 
     if (isZip) {
-      // Bulk ZIP download — suggest first, then cancel + erase + convert
       suggest({ filename: item.filename });
       setTimeout(() => {
         chrome.downloads.cancel(item.id, () => {
           if (chrome.runtime.lastError) {
-            console.warn('[i-PNG] Cancel warning:', chrome.runtime.lastError.message);
+            console.warn('[PixShift] Cancel warning:', chrome.runtime.lastError.message);
           }
           chrome.downloads.erase({ id: item.id });
         });
       }, 100);
-      handleBulkZip(item.url, filename);
+      handleBulkZip(item.url, filename, getOutputFormat());
       return;
     }
 
@@ -87,9 +88,9 @@ export function markOurDownload(downloadId: number): void {
   ourDownloads.add(downloadId);
 }
 
-async function handleSingleHeic(url: string, filename: string): Promise<void> {
+async function handleSingleHeic(url: string, filename: string, outputFormat: OutputFormat): Promise<void> {
   try {
-    console.log(`[i-PNG] Intercepted HEIC download: ${filename}`);
+    console.log(`[PixShift] Intercepted HEIC download: ${filename}`);
 
     const response = await fetch(url);
     if (!response.ok) {
@@ -102,16 +103,16 @@ async function handleSingleHeic(url: string, filename: string): Promise<void> {
     await ensureOffscreenDocument();
 
     const result = await sendToOffscreenWithTimeout(
-      { type: 'CONVERT_HEIC', heicBase64, filename },
+      { type: 'CONVERT_HEIC', heicBase64, filename, outputFormat },
       CONVERSION_TIMEOUT_MS
     );
 
     if (result.type === 'CONVERT_RESULT') {
-      const pngFilename = heicToPngFilename(filename);
-      pendingOurFilenames.push(pngFilename);
-      const downloadId = await downloadPng(result.pngBase64, pngFilename);
+      const outputFilename = heicToOutputFilename(filename, outputFormat);
+      pendingOurFilenames.push(outputFilename);
+      await downloadConverted(result.convertedBase64, outputFilename, outputFormat);
       await incrementConvertedCount(1);
-      showNotification('Converted', `${filename} → ${pngFilename}`);
+      showNotification('Converted', `${filename} → ${outputFilename}`);
     } else if (result.type === 'CONVERT_ERROR') {
       throw new Error(result.error);
     }
@@ -130,9 +131,9 @@ async function handleSingleHeic(url: string, filename: string): Promise<void> {
   }
 }
 
-async function handleBulkZip(url: string, filename: string): Promise<void> {
+async function handleBulkZip(url: string, filename: string, outputFormat: OutputFormat): Promise<void> {
   try {
-    console.log(`[i-PNG] Intercepted ZIP download: ${filename}`);
+    console.log(`[PixShift] Intercepted ZIP download: ${filename}`);
     showNotification('Processing', `Converting HEIC files in ${filename}...`);
 
     const response = await fetch(url);
@@ -146,14 +147,15 @@ async function handleBulkZip(url: string, filename: string): Promise<void> {
     await ensureOffscreenDocument();
 
     const result = await sendToOffscreenWithTimeout(
-      { type: 'CONVERT_BULK_ZIP', zipBase64, filename },
+      { type: 'CONVERT_BULK_ZIP', zipBase64, filename, outputFormat },
       CONVERSION_TIMEOUT_MS * 10 // 5 minutes for bulk
     );
 
     if (result.type === 'ZIP_RESULT') {
-      const pngFilename = filename.replace(/\.zip$/i, '-png.zip');
-      pendingOurFilenames.push(pngFilename);
-      const downloadId = await downloadZip(result.zipBase64, pngFilename);
+      const formatLabel = outputFormat === 'image/jpeg' ? 'jpg' : 'png';
+      const outputZipFilename = filename.replace(/\.zip$/i, `-${formatLabel}.zip`);
+      pendingOurFilenames.push(outputZipFilename);
+      await downloadZip(result.zipBase64, outputZipFilename);
 
       const { converted, skipped, passthrough } = result.stats;
       await incrementConvertedCount(converted);
@@ -212,7 +214,7 @@ function showNotification(title: string, message: string): void {
   chrome.notifications.create({
     type: 'basic',
     iconUrl: 'icons/icon-128.png',
-    title: `i-PNG: ${title}`,
+    title: `PixShift: ${title}`,
     message,
   });
 }
