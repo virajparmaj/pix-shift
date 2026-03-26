@@ -30,4 +30,4 @@ PixShift converts supported Google Photos downloads locally inside your browser.
 
 ## Contact
 
-Provide the support email or support URL used for your Chrome Web Store listing here before submission.
+For support or privacy questions, contact [pixshift@haveaenikeday.com](mailto:pixshift@haveaenikeday.com).

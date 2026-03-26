@@ -45,19 +45,26 @@ const manifest = JSON.parse(readFileSync(distManifestPath, 'utf8')) as {
   minimum_chrome_version?: string;
   permissions?: string[];
 };
+const expectedHostPermissions = [
+  'https://*.googleusercontent.com/*',
+  'https://*.usercontent.google.com/*',
+];
 
 assert(manifest.minimum_chrome_version === '116', 'manifest minimum_chrome_version must be 116');
 assert(!manifest.permissions?.includes('notifications'), 'notifications permission must be removed');
 assert(
-  !manifest.host_permissions?.includes('https://photos.google.com/*'),
-  'photos.google.com host permission must be removed'
+  JSON.stringify(manifest.host_permissions ?? []) === JSON.stringify(expectedHostPermissions),
+  `manifest host_permissions must be ${expectedHostPermissions.join(', ')}`
 );
 
 const hiddenFiles = collectHiddenFiles(dist);
 assert(hiddenFiles.length === 0, `Hidden files copied to dist: ${hiddenFiles.join(', ')}`);
 
 const offscreenBundle = readFileSync(distOffscreenPath, 'utf8');
-assert(!offscreenBundle.includes('URL.createObjectURL'), 'offscreen bundle still contains blob worker logic');
+assert(
+  !offscreenBundle.includes('new Worker(URL.createObjectURL'),
+  'offscreen bundle still contains inline blob worker logic'
+);
 assert(!offscreenBundle.includes('workerBlob'), 'offscreen bundle still references the old heic-to blob worker path');
 
 console.log('Release checks passed.');

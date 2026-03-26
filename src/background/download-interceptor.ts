@@ -18,6 +18,7 @@ import {
   getInterceptKind,
   isExtensionOwnedDownload,
   isGooglePhotosDownload,
+  isPermittedDownloadFetchUrl,
   type InterceptKind,
 } from './download-rules';
 import type {
@@ -107,7 +108,7 @@ async function handleSingleHeic(pending: PendingIntercept): Promise<void> {
   await setLastStatus(createStatus('processing', 'Converting', `Converting ${pending.filename}...`));
 
   try {
-    const response = await fetch(pending.url);
+    const response = await fetchInterceptSource(pending.url);
     if (!response.ok) {
       throw new Error(`Fetch failed: ${response.status} ${response.statusText}`);
     }
@@ -150,7 +151,7 @@ async function handleBulkZip(pending: PendingIntercept): Promise<void> {
   );
 
   try {
-    const response = await fetch(pending.url);
+    const response = await fetchInterceptSource(pending.url);
     if (!response.ok) {
       throw new Error(`Fetch failed: ${response.status} ${response.statusText}`);
     }
@@ -206,6 +207,17 @@ export function getRecoveryTitle(kind: InterceptKind, error: unknown): string {
   }
 
   return kind === 'zip' ? 'Bulk conversion failed' : 'Conversion failed';
+}
+
+export async function fetchInterceptSource(
+  url: string,
+  fetchImpl: typeof fetch = fetch
+): Promise<Response> {
+  if (!isPermittedDownloadFetchUrl(url)) {
+    throw new Error('Download URL is outside the extension host permissions');
+  }
+
+  return fetchImpl(url);
 }
 
 async function cancelOriginalDownload(downloadId: number): Promise<boolean> {

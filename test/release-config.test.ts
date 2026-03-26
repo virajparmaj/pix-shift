@@ -11,10 +11,14 @@ test('manifest permissions and minimum version match release policy', () => {
     minimum_chrome_version?: string;
     permissions?: string[];
   };
+  const expectedHostPermissions = [
+    'https://*.googleusercontent.com/*',
+    'https://*.usercontent.google.com/*',
+  ];
 
   assert.equal(manifest.minimum_chrome_version, '116');
   assert.equal(manifest.permissions?.includes('notifications'), false);
-  assert.equal(manifest.host_permissions?.includes('https://photos.google.com/*'), true);
+  assert.deepEqual(manifest.host_permissions, expectedHostPermissions);
 });
 
 test('build targets include the packaged HEIC worker', () => {
