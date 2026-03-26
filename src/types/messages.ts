@@ -1,40 +1,59 @@
 import type { OutputFormat } from '../shared/constants';
+import type { ConversionStatus } from '../shared/status';
 
 export interface ConvertHeicMessage {
   type: 'CONVERT_HEIC';
-  heicBase64: string;
+  requestId: string;
   filename: string;
   outputFormat: OutputFormat;
 }
 
 export interface ConvertBulkZipMessage {
   type: 'CONVERT_BULK_ZIP';
-  zipBase64: string;
+  requestId: string;
   filename: string;
   outputFormat: OutputFormat;
 }
 
 export interface ConvertResultMessage {
   type: 'CONVERT_RESULT';
-  convertedBase64: string;
+  requestId: string;
   filename: string;
 }
 
 export interface ConvertErrorMessage {
   type: 'CONVERT_ERROR';
+  requestId: string;
   error: string;
-  filename: string;
+  filename?: string;
 }
 
 export interface ZipResultMessage {
   type: 'ZIP_RESULT';
-  zipBase64: string;
+  requestId: string;
   filename: string;
   stats: {
     converted: number;
     skipped: number;
     passthrough: number;
   };
+}
+
+export interface CreateDownloadUrlMessage {
+  type: 'CREATE_DOWNLOAD_URL';
+  requestId: string;
+  mimeType: string;
+}
+
+export interface DownloadUrlResultMessage {
+  type: 'DOWNLOAD_URL_RESULT';
+  requestId: string;
+  url: string;
+}
+
+export interface RevokeDownloadUrlMessage {
+  type: 'REVOKE_DOWNLOAD_URL';
+  url: string;
 }
 
 export interface ToggleEnabledMessage {
@@ -56,6 +75,7 @@ export interface StateResponseMessage {
   enabled: boolean;
   convertedCount: number;
   outputFormat: OutputFormat;
+  lastStatus: ConversionStatus;
   status: string;
 }
 
@@ -65,6 +85,9 @@ export type ExtensionMessage =
   | ConvertResultMessage
   | ConvertErrorMessage
   | ZipResultMessage
+  | CreateDownloadUrlMessage
+  | DownloadUrlResultMessage
+  | RevokeDownloadUrlMessage
   | ToggleEnabledMessage
   | SetFormatMessage
   | GetStateMessage

@@ -1,5 +1,7 @@
 import { HEIC_EXTENSIONS, type OutputFormat } from './constants';
 
+const INVALID_FILENAME_CHARS = /[<>:"/\\|?*\u0000-\u001f\u007f]/g;
+
 export function isHeicFile(filename: string): boolean {
   const lower = filename.toLowerCase();
   return HEIC_EXTENSIONS.some((ext) => lower.endsWith(ext));
@@ -16,29 +18,102 @@ export function heicToOutputFilename(filename: string, format: OutputFormat): st
   return filename + ext;
 }
 
-export function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]);
+export function zipToOutputFilename(): string {
+  return 'PixShift.zip';
+}
+
+export function extractFilenameFromContentDisposition(header: string | null): string | null {
+  if (!header) {
+    return null;
   }
-  return btoa(binary);
-}
 
-export function base64ToArrayBuffer(base64: string): ArrayBuffer {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
+  const filenameStarMatch = header.match(/(?:^|;)\s*filename\*\s*=\s*([^;]+)/i);
+  if (filenameStarMatch) {
+    const decoded = decodeContentDispositionValue(filenameStarMatch[1] ?? '');
+    if (decoded) {
+      return decoded;
+    }
   }
-  return bytes.buffer;
+
+  const filenameMatch = header.match(/(?:^|;)\s*filename\s*=\s*(".*?"|[^;]+)/i);
+  if (!filenameMatch) {
+    return null;
+  }
+
+  return normalizeDispositionFilename(filenameMatch[1] ?? '');
 }
 
-export function base64ToBlob(base64: string, mimeType: string): Blob {
-  return new Blob([base64ToArrayBuffer(base64)], { type: mimeType });
+export function sanitizeDownloadFilename(filename: string | null): string | null {
+  if (!filename) {
+    return null;
+  }
+
+  const basename = filename.replace(/\\/g, '/').split('/').pop()?.trim();
+  if (!basename) {
+    return null;
+  }
+
+  const sanitized = basename.replace(INVALID_FILENAME_CHARS, '_').trim();
+  if (!sanitized || sanitized === '.' || sanitized === '..') {
+    return null;
+  }
+
+  return sanitized;
 }
 
-export async function blobToBase64(blob: Blob): Promise<string> {
-  const buffer = await blob.arrayBuffer();
-  return arrayBufferToBase64(buffer);
+export function createImgFallbackBaseName(sequence: number): string {
+  return `IMG_${String(sequence).padStart(4, '0')}`;
 }
+
+export function deriveSinglePhotoOutputFilename(
+  contentDisposition: string | null,
+  originalFilename: string,
+  outputFormat: OutputFormat,
+  fallbackSequence: number
+): string {
+  const contentDispositionFilename = sanitizeDownloadFilename(
+    extractFilenameFromContentDisposition(contentDisposition)
+  );
+  if (contentDispositionFilename && !isRandomLikeFilename(contentDispositionFilename)) {
+    return heicToOutputFilename(contentDispositionFilename, outputFormat);
+  }
+
+  const sanitizedOriginalFilename = sanitizeDownloadFilename(originalFilename);
+  const sourceFilename =
+    sanitizedOriginalFilename && !isRandomLikeFilename(sanitizedOriginalFilename)
+      ? sanitizedOriginalFilename
+      : createImgFallbackBaseName(fallbackSequence);
+
+  return heicToOutputFilename(sourceFilename, outputFormat);
+}
+
+export function createRequestId(): string {
+  return crypto.randomUUID();
+}
+
+function decodeContentDispositionValue(value: string): string | null {
+  const normalized = normalizeDispositionFilename(value);
+  const encodedMatch = normalized.match(/^[^']*'[^']*'(.*)$/);
+  const candidate = encodedMatch ? encodedMatch[1] ?? '' : normalized;
+
+  if (!candidate) {
+    return null;
+  }
+
+  try {
+    return decodeURIComponent(candidate);
+  } catch {
+    return normalized || null;
+  }
+}
+
+function normalizeDispositionFilename(value: string): string {
+  return value.trim().replace(/^"(.*)"$/, '$1');
+}
+
+function isRandomLikeFilename(filename: string): boolean {
+  const basenameWithoutExtension = filename.replace(/\.[^.]+$/, '');
+  const hexOnly = basenameWithoutExtension.replace(/-/g, '');
+  return /^[0-9a-f]{16,}$/i.test(hexOnly);
+}
+

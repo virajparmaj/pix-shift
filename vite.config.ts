@@ -3,6 +3,12 @@ import { resolve } from 'path';
 
 const target = process.env.BUILD_TARGET ?? 'background';
 
+const singleFileOutput = {
+  output: {
+    inlineDynamicImports: true,
+  },
+};
+
 const configs: Record<string, ReturnType<typeof defineConfig>> = {
   background: defineConfig({
     build: {
@@ -13,11 +19,7 @@ const configs: Record<string, ReturnType<typeof defineConfig>> = {
         formats: ['es'],
         fileName: () => 'background.js',
       },
-      rollupOptions: {
-        output: {
-          inlineDynamicImports: true,
-        },
-      },
+      rollupOptions: singleFileOutput,
     },
   }),
 
@@ -30,11 +32,7 @@ const configs: Record<string, ReturnType<typeof defineConfig>> = {
         formats: ['es'],
         fileName: () => 'offscreen.js',
       },
-      rollupOptions: {
-        output: {
-          inlineDynamicImports: true,
-        },
-      },
+      rollupOptions: singleFileOutput,
     },
   }),
 
@@ -47,6 +45,19 @@ const configs: Record<string, ReturnType<typeof defineConfig>> = {
         formats: ['es'],
         fileName: () => 'popup.js',
       },
+    },
+  }),
+
+  'heic-worker': defineConfig({
+    build: {
+      outDir: 'dist',
+      emptyOutDir: false,
+      lib: {
+        entry: resolve(__dirname, 'src/offscreen/heic-worker.ts'),
+        formats: ['es'],
+        fileName: () => 'heic-worker.js',
+      },
+      rollupOptions: singleFileOutput,
     },
   }),
 };

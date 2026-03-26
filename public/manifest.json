@@ -2,16 +2,15 @@
   "manifest_version": 3,
   "name": "PixShift",
   "version": "1.1.0",
+  "minimum_chrome_version": "116",
   "description": "Auto-converts HEIC downloads from Google Photos to PNG or JPEG",
   "permissions": [
     "downloads",
     "offscreen",
-    "storage",
-    "notifications"
+    "storage"
   ],
   "host_permissions": [
     "https://photos.google.com/*",
-    "https://lh3.googleusercontent.com/*",
     "https://*.googleusercontent.com/*",
     "https://*.usercontent.google.com/*"
   ],

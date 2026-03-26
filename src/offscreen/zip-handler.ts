@@ -1,20 +1,21 @@
 import JSZip from 'jszip';
-import { isHeicFile, heicToOutputFilename } from '../shared/utils';
-import { convertHeic } from './converter';
-import { arrayBufferToBase64, base64ToArrayBuffer } from '../shared/utils';
+import { heicToOutputFilename, isHeicFile } from '../shared/utils';
 import type { OutputFormat } from '../shared/constants';
+import { convertHeic } from './converter';
 
-interface ZipConversionStats {
+export interface ZipConversionStats {
   converted: number;
   skipped: number;
   passthrough: number;
 }
 
+export type HeicConverter = (buffer: ArrayBuffer, format: OutputFormat) => Promise<ArrayBuffer>;
+
 export async function convertZip(
-  zipBase64: string,
-  outputFormat: OutputFormat
-): Promise<{ zipBase64: string; stats: ZipConversionStats }> {
-  const zipBuffer = base64ToArrayBuffer(zipBase64);
+  zipBuffer: ArrayBuffer,
+  outputFormat: OutputFormat,
+  converter: HeicConverter = convertHeic
+): Promise<{ zipBuffer: ArrayBuffer; stats: ZipConversionStats }> {
   const zip = await JSZip.loadAsync(zipBuffer);
   const output = new JSZip();
   const stats: ZipConversionStats = { converted: 0, skipped: 0, passthrough: 0 };
@@ -26,14 +27,11 @@ export async function convertZip(
 
     if (isHeicFile(path)) {
       try {
-        const heicBase64 = arrayBufferToBase64(data);
-        const convertedBase64 = await convertHeic(heicBase64, outputFormat);
-        const convertedBuffer = base64ToArrayBuffer(convertedBase64);
+        const convertedBuffer = await converter(data.slice(0), outputFormat);
         const newPath = heicToOutputFilename(path, outputFormat);
         output.file(newPath, convertedBuffer);
         stats.converted++;
       } catch {
-        // If conversion fails for this file, keep the original
         output.file(path, data);
         stats.skipped++;
       }
@@ -43,9 +41,12 @@ export async function convertZip(
     }
   }
 
-  const outputBuffer = await output.generateAsync({ type: 'arraybuffer' });
+  if (stats.converted === 0 && stats.skipped > 0) {
+    throw new Error(`All ${stats.skipped} HEIC files failed to convert`);
+  }
+
   return {
-    zipBase64: arrayBufferToBase64(outputBuffer),
+    zipBuffer: await output.generateAsync({ type: 'arraybuffer' }),
     stats,
   };
 }
