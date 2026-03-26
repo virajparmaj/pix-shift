@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="popup.css">
+  <title>i-PNG</title>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>i-PNG</h1>
+      <label class="toggle">
+        <input type="checkbox" id="enabled-toggle" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
+    <p class="status" id="status-text">Ready</p>
+    <div class="stats" id="stats">
+      <span id="converted-count">0</span> converted
+    </div>
+  </div>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
